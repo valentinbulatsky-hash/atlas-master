@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="280" viewBox="0 0 1100 280" role="img" aria-label="Атлас мастера. Все нити истории — в ваших руках">
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#151b22"/><stop offset="1" stop-color="#233544"/></linearGradient></defs>
+  <rect width="1100" height="280" rx="22" fill="url(#bg)"/>
+  <g fill="none" stroke="#cba567" stroke-width="2">
+    <path d="M74 118 110 95 146 118v41l-36 21-36-21zM110 95v85M74 118l72 41M146 118l-72 41"/>
+    <path d="M799 76 926 124 844 207M926 124l95 72M926 124l95-57" opacity=".32"/>
+    <circle cx="799" cy="76" r="10"/><circle cx="926" cy="124" r="19"/><circle cx="844" cy="207" r="10"/><circle cx="1021" cy="196" r="10"/><circle cx="1021" cy="67" r="10"/>
+  </g>
+  <g font-family="Segoe UI, Arial, sans-serif">
+    <text x="177" y="111" fill="#cba567" font-size="13" letter-spacing="3">МАСТЕРСКАЯ МИРОВ</text>
+    <text x="173" y="165" fill="#f2e8d8" font-family="Georgia, serif" font-size="48">Атлас мастера</text>
+    <text x="177" y="207" fill="#b7c5d1" font-size="20">Все нити истории — в ваших руках.</text>
+  </g>
+</svg>
