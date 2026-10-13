@@ -1,0 +1,31 @@
+import { db, owner, failure, ApiError, serialize } from '@/lib/server';
+import { entityInput,checkPayload } from '@/lib/validation';
+export const dynamic='force-dynamic';
+export async function GET(req:Request){try{const uid=await owner(req);const r=await db().prepare('SELECT * FROM entities WHERE owner_id=? ORDER BY updated_at DESC').bind(uid).all();return Response.json({entities:r.results.map(serialize)},{headers:{'Cache-Control':'no-store'}})}catch(e){return failure(e)}}
+async function write(req:Request,update:boolean){try{const uid=await owner(req);const raw=await req.text();if(raw.length>220000)throw new ApiError('Запись слишком большая.',413);let body;try{body=JSON.parse(raw)}catch{throw new ApiError('Некорректный запрос.')}const parsed=entityInput.safeParse(body);if(!parsed.success)throw new ApiError('Проверьте название, длину полей и настройки материала.');const v=parsed.data;try{checkPayload(v.payload)}catch(e){throw new ApiError((e as Error).message)}
+ const rows=(await db().prepare('SELECT * FROM entities WHERE owner_id=?').bind(uid).all()).results as any[];
+ const old=update?rows.find(r=>r.id===v.id):null;if(update&&!old)throw new ApiError('Материал не найден.',404);if(old&&(old.kind!==v.kind||old.campaign_id!==(v.campaignId??null)))throw new ApiError('Тип и кампания материала не меняются.');if(update&&old.revision!==v.revision)throw new ApiError('Материал изменён в другой вкладке. Скопируйте свои правки и загрузите актуальную версию.',409);
+ if(!update&&(rows.length>=2000||(v.kind==='campaign'&&rows.filter(r=>r.kind==='campaign').length>=20)))throw new ApiError('Достигнут лимит записей первой версии.');
+ if(v.kind==='campaign'){v.campaignId=null;v.folderId=null;}else{if(!rows.some(r=>r.id===v.campaignId&&r.kind==='campaign'))throw new ApiError('Кампания не найдена.');}
+ if(v.summary.length>(v.kind==='campaign'?2000:500))throw new ApiError('Краткое описание материала — не более 500 символов.');
+ if(v.folderId){let p=rows.find(r=>r.id===v.folderId&&r.kind==='folder'&&r.campaign_id===v.campaignId);if(!p)throw new ApiError('Каталог не найден.');let depth=v.kind==='folder'?1:0;const seen=new Set([v.id]);while(p){if(seen.has(p.id))throw new ApiError('Каталог нельзя переместить внутрь самого себя.');seen.add(p.id);depth++;if(depth>5)throw new ApiError('Разрешено не более пяти уровней каталогов.');p=rows.find(r=>r.id===p.folder_id);}
+ if(v.kind==='folder'&&v.id){const descendants=(pid:string):number=>{const cs=rows.filter(r=>r.kind==='folder'&&r.folder_id===pid);return cs.length?1+Math.max(...cs.map(c=>descendants(c.id))):0};if(depth+descendants(v.id)>5)throw new ApiError('Дочерние каталоги превышают пять уровней.');}}
+
+ const known=new Set(rows.map(r=>r.id));
+ const existingRefs=new Set<string>();
+ const existingAssets=new Set<string>();
+ function collect(value:any,refs:Set<string>,assets:Set<string>){if(!value||typeof value!=='object')return;for(const [k,val] of Object.entries(value)){if(k==='linkedEntityId'&&typeof val==='string'&&val)refs.add(val);if(k==='href'&&typeof val==='string'&&/^\/?\?entity=/.test(val))refs.add(val.split('=')[1]);if(['src','cover','image','pdf'].includes(k)&&typeof val==='string'&&val.startsWith('/api/assets/'))assets.add(val.split('/').pop()!);if(val&&typeof val==='object')collect(val,refs,assets)}}
+ if(old)collect(JSON.parse(old.payload),existingRefs,existingAssets);
+ const refs=new Set<string>(),assetIds=new Set<string>();collect(v.payload,refs,assetIds);
+ if([...refs].some(id=>!known.has(id)&&!existingRefs.has(id)))throw new ApiError('Связанный материал недоступен.');
+ const ownAssets=(await db().prepare('SELECT id FROM assets WHERE owner_id=?').bind(uid).all()).results.map((a:any)=>a.id);
+ if([...assetIds].some(id=>!ownAssets.includes(id)&&!existingAssets.has(id)))throw new ApiError('Изображение недоступно.');
+ const payload=JSON.stringify(v.payload);const now=new Date().toISOString();const id=update?v.id!:crypto.randomUUID();
+ if(update){const r=await db().prepare('UPDATE entities SET title=?,summary=?,folder_id=?,payload=?,updated_at=?,revision=revision+1 WHERE id=? AND owner_id=? AND revision=?').bind(v.title,v.summary,v.folderId??null,payload,now,id,uid,v.revision!).run();if(!r.meta.changes)throw new ApiError('Материал изменён в другой вкладке. Скопируйте свои правки и загрузите актуальную версию.',409);}else await db().prepare('INSERT INTO entities (id,owner_id,campaign_id,folder_id,kind,title,summary,payload,revision,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,1,?,?)').bind(id,uid,v.campaignId??null,v.folderId??null,v.kind,v.title,v.summary,payload,now,now).run();
+ const row=await db().prepare('SELECT * FROM entities WHERE id=? AND owner_id=?').bind(id,uid).first();return Response.json({entity:serialize(row)});
+ }catch(e){return failure(e)}}
+export async function POST(req:Request){return write(req,false)}export async function PATCH(req:Request){return write(req,true)}
+export async function DELETE(req:Request){try{const uid=await owner(req);const {id,revision}=await req.json() as {id:string;revision:number};const row:any=await db().prepare('SELECT * FROM entities WHERE id=? AND owner_id=?').bind(id,uid).first();if(!row)throw new ApiError('Материал не найден.',404);if(row.revision!==revision)throw new ApiError('Запись изменилась. Обновите список перед удалением.',409);
+ if(row.kind==='campaign')await db().batch([db().prepare('DELETE FROM entities WHERE campaign_id=? AND owner_id=? AND EXISTS (SELECT 1 FROM entities WHERE id=? AND owner_id=? AND revision=?)').bind(id,uid,id,uid,revision),db().prepare('DELETE FROM entities WHERE id=? AND owner_id=? AND revision=?').bind(id,uid,revision)]);
+ else if(row.kind==='folder')await db().batch([db().prepare('UPDATE entities SET folder_id=?,revision=revision+1 WHERE folder_id=? AND owner_id=? AND EXISTS (SELECT 1 FROM entities WHERE id=? AND owner_id=? AND revision=?)').bind(row.folder_id,id,uid,id,uid,revision),db().prepare('DELETE FROM entities WHERE id=? AND owner_id=? AND revision=?').bind(id,uid,revision)]);
+ else{const r=await db().prepare('DELETE FROM entities WHERE id=? AND owner_id=? AND revision=?').bind(id,uid,revision).run();if(!r.meta.changes)throw new ApiError('Запись изменилась.',409)}return Response.json({ok:true});}catch(e){return failure(e)}}

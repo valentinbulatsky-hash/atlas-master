@@ -1,0 +1,6 @@
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import Workspace from '../app/workspace/workspace';
+import { AtlasTheme } from '../app/workspace/theme';
+import '../app/globals.css';
+createRoot(document.getElementById('root')!).render(<AtlasTheme><Workspace signedIn local/></AtlasTheme>);

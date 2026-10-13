@@ -1,0 +1,6 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {"incremental": false},
+  "include": ["../*.d.ts", "../app/workspace/**/*.tsx", "../components/**/*.tsx", "../hooks/**/*.ts", "../lib/**/*.ts", "./*.ts", "./*.tsx"],
+  "exclude": ["node_modules", "dist-renderer", "release"]
+}

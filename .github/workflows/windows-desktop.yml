@@ -1,0 +1,97 @@
+name: Windows desktop
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a new version to GitHub Releases after successful checks
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    tags: ['desktop-v*']
+permissions:
+  contents: read
+concurrency:
+  group: windows-desktop-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - name: Install interface dependencies
+        run: npm install --ignore-scripts
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+      - name: Build Windows installer and run tests
+        working-directory: desktop
+        run: |
+          npm run build
+          npx tsc --noEmit -p tsconfig.json
+          npm test
+          npx electron tests/protocol-smoke.electron.cjs
+          npx electron-builder --win nsis --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          GH_TOKEN: ''
+      - name: Prepare downloadable archives and checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
+          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
+          $tag = "desktop-v$version"
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) { throw 'Tag does not match desktop version' }
+          $out = Join-Path $env:RUNNER_TEMP 'atlas-release-assets'
+          $stage = Join-Path $env:RUNNER_TEMP 'atlas-zip/AtlasMaster'
+          New-Item -ItemType Directory -Path $out, $stage -Force | Out-Null
+          Copy-Item desktop/release/win-unpacked/* $stage -Recurse
+          Compress-Archive -Path $stage -DestinationPath "$out/AtlasMaster-$version-Windows-x64.zip" -CompressionLevel Optimal
+          git archive --format=zip --prefix=AtlasMaster-Source/ --output="$out/AtlasMaster-$version-Source.zip" HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
+          $installers = @(Get-ChildItem desktop/release -Filter '*-Setup.exe' -File)
+          if ($installers.Count -ne 1) { throw 'Expected one Windows installer' }
+          Copy-Item $installers[0].FullName $out
+          Copy-Item desktop/README.md "$out/AtlasMaster-Windows-Instructions.md"
+          $checksums = Get-ChildItem $out -File | Where-Object { $_.Extension -in '.zip', '.exe' } | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          $checksums | Set-Content "$out/SHA256SUMS.txt" -Encoding utf8NoBOM
+          "ATLAS_RELEASE_ASSETS=$out" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "ATLAS_RELEASE_TAG=$tag" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "ATLAS_RELEASE_VERSION=$version" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AtlasMaster-Windows-x64
+          path: ${{ env.ATLAS_RELEASE_ASSETS }}/*
+          retention-days: 30
+      - name: Publish first release for this version
+        if: ${{ github.event_name == 'push' || inputs.publish }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh release view $env:ATLAS_RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json tagName *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output 'This version is already published; existing files are preserved. Bump desktop/package.json for a new release.'
+            exit 0
+          }
+          $notes = Get-Content RELEASES.md -Raw
+          $notes = $notes.Replace('(README.md)', "(https://github.com/$env:GITHUB_REPOSITORY/blob/$env:GITHUB_SHA/README.md)")
+          $notes += "`n`nThe Windows installer, ZIP, source archive, instructions and SHA256 checksums are attached below. Built from commit $env:GITHUB_SHA.`n"
+          $notesPath = Join-Path $env:RUNNER_TEMP 'atlas-release-notes.md'
+          $notes | Set-Content $notesPath -Encoding utf8NoBOM
+          $assets = @(Get-ChildItem $env:ATLAS_RELEASE_ASSETS -File | ForEach-Object { $_.FullName })
+          gh release create $env:ATLAS_RELEASE_TAG @assets --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Атлас мастера $env:ATLAS_RELEASE_VERSION — Windows" --notes-file $notesPath --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
