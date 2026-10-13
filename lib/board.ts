@@ -1,4 +1,4 @@
-import { characterType, type Entity } from './model';
+import { isSession, characterType, type Entity } from './model';
 
 export const GRID_SIZE = 24;
 export const DEFAULT_NODE_SIZE = { width: 240, height: 240 };
@@ -57,9 +57,9 @@ export function labelTransform(path: string, x: number, y: number, position: Edg
 export const linkCategories = [
   { value: 'pc', label: 'Игровые персонажи' }, { value: 'npc', label: 'NPC' },
   { value: 'map', label: 'Локации и карты' }, { value: 'article', label: 'Статьи' },
-  { value: 'board', label: 'Доски связей' }, { value: 'campaign', label: 'Кампании' },
+  { value: 'board', label: 'Доски связей' }, { value: 'sessions', label: 'Сессии' }, { value: 'campaign', label: 'Кампании' },
 ] as const;
-export function linkCategory(entity: Entity) { return characterType(entity) ?? entity.kind; }
+export function linkCategory(entity: Entity) { return isSession(entity)?'sessions':characterType(entity) ?? entity.kind; }
 export function categoryMaterials(entities: Entity[], category: string, query = '') {
   const needle = query.trim().toLocaleLowerCase('ru');
   return entities.filter(e => linkCategory(e) === category && e.title.toLocaleLowerCase('ru').includes(needle))

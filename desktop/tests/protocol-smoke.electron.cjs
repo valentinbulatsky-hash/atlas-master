@@ -21,7 +21,7 @@ app.on('browser-window-created',(_event,window)=>{
         if(!document.body.textContent.includes('Новая кампания'))throw new Error('Interface not rendered');
         const wait=async check=>{for(let n=0;n<80;n++){if(check())return;await new Promise(r=>setTimeout(r,100))}throw new Error('UI wait timeout')};
         if(!window.atlasDesktop)throw new Error('Desktop settings bridge missing');
-        const info=await window.atlasDesktop.execute('info');if(info.version!=='0.1.1')throw new Error('Unexpected version');
+        const info=await window.atlasDesktop.execute('info');if(info.version!==${JSON.stringify(require('../package.json').version)})throw new Error('Unexpected version');
         const buttons=[...document.querySelectorAll('button')];
         const enter=buttons.find(b=>b.textContent.includes('Открыть последнюю кампанию'))??buttons.find(b=>b.textContent.includes('Попробовать'));
         if(!enter)throw new Error('Campaign entry missing');enter.click();

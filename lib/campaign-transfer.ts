@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { entityInput, checkPayload } from './validation';
-import type { Entity } from './model';
+import { isSession, type Entity } from './model';
+import { materialType, titleKey } from './material-names';
 
 export const ARCHIVE_FORMAT = 'atlas-master-campaign';
 export const MAX_ARCHIVE_BYTES = 100 * 1024 * 1024;
@@ -23,7 +24,7 @@ export function assetReferences(value: unknown): Set<string> {
 }
 export function entityReferences(value: unknown): Set<string> {
   const result = new Set<string>();
-  function walk(v: any) { if (!v || typeof v !== 'object') return; for (const [key, x] of Object.entries(v)) { if (key === 'linkedEntityId' && typeof x === 'string' && x) result.add(x); if (key === 'href' && typeof x === 'string' && /^\/?\?entity=/.test(x)) result.add(x.split('=')[1]); if (x && typeof x === 'object') walk(x); } }
+  function walk(v: any) { if (!v || typeof v !== 'object') return; for (const [key, x] of Object.entries(v)) { if (key === 'participantIds' && Array.isArray(x)) for(const id of x) if(typeof id==='string') result.add(id); if (key === 'linkedEntityId' && typeof x === 'string' && x) result.add(x); if (key === 'href' && typeof x === 'string' && /^\/?\?entity=/.test(x)) result.add(x.split('=')[1]); if (x && typeof x === 'object') walk(x); } }
   walk(value); return result;
 }
 export function validateArchiveMetadata(raw: unknown): ArchiveMetadata {
@@ -37,7 +38,10 @@ export function validateArchiveMetadata(raw: unknown): ArchiveMetadata {
   if (campaigns.length !== 1 || campaigns[0].id !== archive.campaignId || campaigns[0].campaignId !== null || campaigns[0].folderId !== null) throw new Error('В файле должна быть одна кампания.');
   const assetIds = new Set(archive.assets.map(a=>a.id));
   if (archive.assets.reduce((n,a)=>n+a.size,0)>60*1024*1024) throw new Error('Вложения кампании превышают 60 МБ.');
+  const names=new Set<string>();
   for (const r of archive.records) {
+    if(r.kind!=='campaign'){const key=JSON.stringify([r.folderId,materialType(r),titleKey(r.title)]);if(names.has(key))throw new Error('В файле есть одинаковые названия одного типа в одном каталоге. Переименуйте эти материалы перед переносом.');names.add(key);}
+    if(isSession(r)){if(r.folderId||!r.payload.sessionDate)throw new Error('Некорректная запись журнала сессий.');for(const id of r.payload.participantIds??[]){const pc=records.get(id);if(!pc||pc.kind!=='character')throw new Error('Участник сессии должен быть персонажем этой кампании.');}}
     if (r.summary.length > (r.kind === 'campaign' ? 2000 : 500)) throw new Error('Краткое описание слишком длинное.');
     if (r.kind !== 'campaign' && r.campaignId !== archive.campaignId) throw new Error('Материал относится к другой кампании.');
     checkPayload(r.payload);
@@ -73,7 +77,8 @@ export function remapArchive(archive: ArchiveMetadata, newCampaignId: string, as
     if (!value || typeof value!=='object') return value;
     const result:Record<string,any>={};
     for (const [key,v] of Object.entries(value)) {
-      if (key==='linkedEntityId' && typeof v==='string' && v) result[key]=ids.get(v)!;
+      if (key==='participantIds' && Array.isArray(v)) result[key]=v.map(id=>ids.get(id)!);
+      else if (key==='linkedEntityId' && typeof v==='string' && v) result[key]=ids.get(v)!;
       else if (key==='href' && typeof v==='string' && /^\/?\?entity=/.test(v)) result[key]='/?entity='+ids.get(v.split('=')[1]);
       else if (['src','image','cover','pdf'].includes(key) && typeof v==='string' && v.startsWith('/api/assets/')) result[key]='/api/assets/'+assets[v.split('/').pop()!];
       else if (!['__proto__','constructor','prototype'].includes(key)) result[key]=rewrite(v);

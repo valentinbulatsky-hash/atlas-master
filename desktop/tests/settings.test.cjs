@@ -36,7 +36,7 @@ test('desktop settings remove native menu, restrict callers and preserve scale p
     assert.equal(applicationMenu,null);assert.equal(main.menuRemoved,true);assert.equal(main.menuVisible,false);
     assert.equal(main.options.webPreferences.nodeIntegration,false);assert.equal(main.options.webPreferences.contextIsolation,true);assert.ok(main.options.webPreferences.preload.endsWith('preload.cjs'));
     const event={sender:main.webContents,senderFrame:main.webContents.mainFrame};
-    assert.equal((await handler(event,'info')).version,'0.1.1');
+    assert.equal((await handler(event,'info')).version,require('../package.json').version);
     assert.equal((await handler(event,'zoom-in')).zoomFactor,1.1);
     assert.equal(JSON.parse(fs.readFileSync(path.join(paths.userData,'preferences.json'),'utf8')).zoomFactor,1.1);
     assert.equal((await handler(event,'zoom-reset')).zoomFactor,1);

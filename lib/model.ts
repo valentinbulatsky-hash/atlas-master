@@ -8,5 +8,6 @@ export function plainText(v:any):string{if(!v)return ''; if(typeof v==='string')
 export function safeHref(h:string){return /^https?:\/\//i.test(h)||/^\/?\?entity=[a-zA-Z0-9_-]+$/.test(h)}
 
 export function characterType(e:Entity):'pc'|'npc'|null{return e.kind==='character'?(e.payload.characterType==='pc'?'pc':'npc'):null;}
-export function materialLabel(e:Entity):string{return e.kind==='character'?(characterType(e)==='pc'?'Игровой персонаж':'NPC'):labels[e.kind];}
-export function matchesSection(e:Entity,section:string):boolean{if(section==='pc'||section==='npc')return characterType(e)===section;return section==='all'?e.kind==='article':section==='overview'||e.kind===section;}
+export function isSession(e:Pick<Entity,'kind'|'payload'>):boolean{return e.kind==='article'&&e.payload.entryType==='session';}
+export function materialLabel(e:Entity):string{return isSession(e)?'Запись сессии':e.kind==='character'?(characterType(e)==='pc'?'Игровой персонаж':'NPC'):e.kind==='folder'?'Подкаталог':labels[e.kind];}
+export function matchesSection(e:Entity,section:string):boolean{if(section==='sessions')return isSession(e);if(isSession(e))return false;if(section==='pc'||section==='npc')return characterType(e)===section;return section==='all'?e.kind==='article':section==='overview'||e.kind===section;}

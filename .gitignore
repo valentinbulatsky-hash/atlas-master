@@ -51,3 +51,6 @@ next-env.d.ts
 /desktop/release/
 /desktop/server.cjs
 /desktop/test-output/
+
+/desktop/features.cjs
+*.tsbuildinfo

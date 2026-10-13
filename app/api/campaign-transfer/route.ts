@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { z } from 'zod';
 import { db, owner, failure, ApiError, serialize } from '@/lib/server';
+import { titleKey, materialType } from '@/lib/material-names';
 import { assetMime } from '@/lib/assets';
 import { assetReferences, campaignSnapshot, remapArchive, validateArchiveMetadata } from '@/lib/campaign-transfer';
 
@@ -44,9 +45,9 @@ export async function POST(req:Request){try{
   const records=remapArchive(archive,importId!,mapping), now=new Date().toISOString();
   // Bounded JSON parameters avoid per-row query and parameter limits while keeping the whole import atomic.
   const chunks:string[]=[];let group:string[]=[],size=2;
-  for(const r of records){const text=JSON.stringify({id:r.id,campaignId:r.campaignId,folderId:r.folderId,kind:r.kind,title:r.title,summary:r.summary,payload:JSON.stringify(r.payload)}),bytes=new TextEncoder().encode(text).length;if(group.length&&size+bytes+1>1024*1024){chunks.push('['+group.join(',')+']');group=[];size=2;}group.push(text);size+=bytes+1;}
+  for(const r of records){const text=JSON.stringify({id:r.id,campaignId:r.campaignId,folderId:r.folderId,kind:r.kind,title:r.title,nameKey:titleKey(r.title),materialType:materialType(r),summary:r.summary,payload:JSON.stringify(r.payload)}),bytes=new TextEncoder().encode(text).length;if(group.length&&size+bytes+1>1024*1024){chunks.push('['+group.join(',')+']');group=[];size=2;}group.push(text);size+=bytes+1;}
   if(group.length)chunks.push('['+group.join(',')+']');
-  await db().batch(chunks.map(chunk=>db().prepare("INSERT INTO entities (id,owner_id,campaign_id,folder_id,kind,title,summary,payload,revision,created_at,updated_at) SELECT json_extract(value,'$.id'),?,json_extract(value,'$.campaignId'),json_extract(value,'$.folderId'),json_extract(value,'$.kind'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.payload'),1,?,? FROM json_each(?)").bind(uid,now,now,chunk)));
+  await db().batch(chunks.map(chunk=>db().prepare("INSERT INTO entities (id,owner_id,campaign_id,folder_id,kind,title,summary,payload,name_key,material_type,revision,created_at,updated_at) SELECT json_extract(value,'$.id'),?,json_extract(value,'$.campaignId'),json_extract(value,'$.folderId'),json_extract(value,'$.kind'),json_extract(value,'$.title'),json_extract(value,'$.summary'),json_extract(value,'$.payload'),json_extract(value,'$.nameKey'),json_extract(value,'$.materialType'),1,?,? FROM json_each(?)").bind(uid,now,now,chunk)));
   const row=await db().prepare('SELECT * FROM entities WHERE id=? AND owner_id=?').bind(importId,uid).first();
   return Response.json({campaign:serialize(row),imported:records.length});
 }catch(e){return failure(e)}}

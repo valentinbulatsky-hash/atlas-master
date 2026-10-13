@@ -7,7 +7,7 @@ on:
         type: boolean
         default: false
   push:
-    branches: [main]
+    branches: [main, 'preview/**']
     tags: ['desktop-v*']
 permissions:
   contents: read
@@ -39,6 +39,11 @@ jobs:
           npx tsc --noEmit -p tsconfig.json
           npm test
           npx electron tests/protocol-smoke.electron.cjs
+          npx electron tests/features-smoke.electron.cjs
+          if (!(Test-Path test-output/features-smoke.json)) { throw 'UI smoke report missing' }
+          $uiReport = Get-Content test-output/features-smoke.json -Raw | ConvertFrom-Json
+          if (!$uiReport.ok) { throw ($uiReport.error) }
+          Get-Content test-output/features-smoke.json
           npx electron-builder --win nsis --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -50,13 +55,14 @@ jobs:
           $version = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
           if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
           $tag = "desktop-v$version"
+          $previewSuffix = if ($env:GITHUB_REF -like "refs/heads/preview/*") { "-preview" } else { "" }
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) { throw 'Tag does not match desktop version' }
           $out = Join-Path $env:RUNNER_TEMP 'atlas-release-assets'
           $stage = Join-Path $env:RUNNER_TEMP 'atlas-zip/AtlasMaster'
           New-Item -ItemType Directory -Path $out, $stage -Force | Out-Null
           Copy-Item desktop/release/win-unpacked/* $stage -Recurse
-          Compress-Archive -Path $stage -DestinationPath "$out/AtlasMaster-$version-Windows-x64.zip" -CompressionLevel Optimal
-          git archive --format=zip --prefix=AtlasMaster-Source/ --output="$out/AtlasMaster-$version-Source.zip" HEAD
+          Compress-Archive -Path $stage -DestinationPath "$out/AtlasMaster-$version-Windows-x64$previewSuffix.zip" -CompressionLevel Optimal
+          git archive --format=zip --prefix=AtlasMaster-Source/ --output="$out/AtlasMaster-$version-Source$previewSuffix.zip" HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Source archive failed' }
           $installers = @(Get-ChildItem desktop/release -Filter '*-Setup.exe' -File)
           if ($installers.Count -ne 1) { throw 'Expected one Windows installer' }
@@ -76,7 +82,7 @@ jobs:
           path: ${{ env.ATLAS_RELEASE_ASSETS }}/*
           retention-days: 30
       - name: Publish first release for this version
-        if: ${{ github.event_name == 'push' || inputs.publish }}
+        if: ${{ (github.ref == 'refs/heads/main' || github.ref_type == 'tag') && (github.event_name == 'push' || inputs.publish) }}
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

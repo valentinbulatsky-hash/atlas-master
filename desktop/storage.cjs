@@ -13,6 +13,16 @@ async function createStorage(directory){
     CREATE TABLE IF NOT EXISTS entities (id TEXT PRIMARY KEY NOT NULL,owner_id TEXT NOT NULL,campaign_id TEXT,folder_id TEXT,kind TEXT NOT NULL,title TEXT NOT NULL,summary TEXT NOT NULL DEFAULT '',payload TEXT NOT NULL DEFAULT '{}',revision INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS entities_owner ON entities(owner_id);
     CREATE INDEX IF NOT EXISTS entities_campaign ON entities(owner_id,campaign_id);`);
+  // Add a name index without renaming or removing legacy materials.
+  const columns=new Set(raw.exec('PRAGMA table_info(entities)')[0].values.map(r=>r[1]));
+  for(const column of ['name_key','material_type'])if(!columns.has(column))raw.run('ALTER TABLE entities ADD COLUMN '+column+' TEXT');
+  const legacy=raw.exec('SELECT id,title,kind,payload FROM entities WHERE name_key IS NULL OR material_type IS NULL');
+  if(legacy.length)for(const [id,title,kind,json] of legacy[0].values){
+    const payload=JSON.parse(json),key=title.normalize('NFKC').trim().replace(/\s+/gu,' ').toLocaleLowerCase('ru');
+    const type=kind==='character'?(payload.characterType==='pc'?'pc':'npc'):kind==='article'&&payload.entryType==='session'?'session':kind;
+    raw.run('UPDATE entities SET name_key=?,material_type=? WHERE id=?',[key,type,id]);
+  }
+  raw.run('CREATE INDEX IF NOT EXISTS entities_names ON entities(owner_id,campaign_id,folder_id,material_type,name_key)');
   function persist(){
     const temporary=databaseFile+'.'+randomUUID()+'.tmp';
     const fd=fs.openSync(temporary,'wx');

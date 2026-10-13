@@ -8,3 +8,5 @@ await esbuild({entryPoints:[path.join(here,'api.ts')],outfile:path.join(here,'se
   alias:{'@/lib/server':path.join(here,'server.ts'),'cloudflare:workers':path.join(here,'local-env.ts'),'@':root},
 });
 console.log('Локальный интерфейс и API собраны.');
+
+await esbuild({entryPoints:[path.join(here,'features.ts')],outfile:path.join(here,'features.cjs'),bundle:true,format:'cjs',platform:'node',target:'node22'});
