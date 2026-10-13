@@ -43,7 +43,7 @@ function payloadLinks(value:any,target:string):boolean{
 export function backlinks(target:Entity,entities:Entity[]):{entity:Entity;reason:string}[]{
  const name=searchKey(target.title).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
  const mention=new RegExp('(?:^|[^\\p{L}\\p{N}_])'+name+'(?=$|[^\\p{L}\\p{N}_])','u');
- return entities.filter(e=>e.id!==target.id&&e.campaignId===target.campaignId&&e.kind!=='campaign').flatMap(e=>{
+ return entities.filter(e=>e.id!==target.id&&e.campaignId===target.campaignId&&e.kind!=='campaign'&&!isSession(e)).flatMap(e=>{
   const linked=payloadLinks(e.payload,target.id),parent=e.kind==='folder'&&target.folderId===e.id,text=mention.test(searchKey(e.title+' '+materialText(e,entities)));
   return linked||parent||text?[{entity:e,reason:linked?'Внутренняя ссылка':parent?'Содержит материал':'Упоминание названия'}]:[];
  }).sort((a,b)=>a.entity.title.localeCompare(b.entity.title,'ru'));

@@ -29,16 +29,18 @@ test('campaign search separates the journal and other campaigns, searches conten
  assert.equal(searchMaterials([pc,newer],'camp','',{sort:'created-desc'})[0].entity.id,'a');
  assert.equal(searchMaterials([pc,newer],'camp','',{sort:'created-asc'})[0].entity.id,'pc');
 });
-test('backlinks include rich links, unlinked words, maps, boards, folders and session participants once',()=>{
+test('backlinks include only library materials and exclude every kind of session reference',()=>{
  const target=entity('orm','Орм','character',{characterType:'pc'},'folder');
  const linked=entity('link','Сага','article',{content:{type:'doc',content:[{type:'paragraph',content:[{type:'text',text:'Бард',marks:[{type:'link',attrs:{href:'/?entity=orm'}}]}]}]}});
  const mention=entity('mention','Легенда','article',{content:textDoc('«Орм» знает этот путь. Орм вернулся.')});
  const unrelated=entity('no','Норма','article',{content:textDoc('Нормальный рассказ')});
  const map=entity('map','Карта','map',{pins:[{linkedEntityId:'orm'}]}),board=entity('board','Связи','board',{nodes:[{data:{linkedEntityId:'orm'}}]});
  const folder=entity('folder','Персонажи','folder'),session=entity('session','Сессия','article',{entryType:'session',participantIds:['orm']});
+ const sessionMention=entity('session-mention','Сессия с упоминанием','article',{entryType:'session',content:textDoc('Орм вернулся')});
+ const sessionLink=entity('session-link','Сессия со ссылкой','article',{entryType:'session',content:linked.payload.content});
  const outside=entity('other','В другом мире','article',{content:textDoc('Орм')},null,'other');
- const result=backlinks(target,[target,linked,mention,unrelated,map,board,folder,session,outside]);
- assert.deepEqual(new Set(result.map(x=>x.entity.id)),new Set(['link','mention','map','board','folder','session']));
+ const result=backlinks(target,[target,linked,mention,unrelated,map,board,folder,session,sessionMention,sessionLink,outside]);
+ assert.deepEqual(new Set(result.map(x=>x.entity.id)),new Set(['link','mention','map','board','folder']));
  assert.equal(result.filter(x=>x.entity.id==='mention').length,1);
  const punctuation=entity('x','Узел (древний)');assert.equal(backlinks(punctuation,[punctuation,entity('y','Текст','article',{content:textDoc('Нашли Узел (древний).')})]).length,1);
 });
