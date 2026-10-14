@@ -9,8 +9,8 @@ export function SymbolChoice({ label, value, onChange, options, columns }: { lab
   </ToggleGroup>;
 }
 export function ShapeChoices({ value, onChange }: { value: string; onChange: (value: string) => void }) {
-  const options = [{ value: 'rectangle', label: 'Прямоугольник' }, { value: 'rounded', label: 'Скруглённый блок' }, { value: 'circle', label: 'Круг' }];
-  return <SymbolChoice label="Форма блока" value={value} onChange={onChange} columns={3} options={options.map(o => ({ ...o, symbol: <svg aria-hidden="true" viewBox="0 0 42 32" fill="none" stroke="currentColor" strokeWidth={2}>{o.value === 'circle' ? <circle cx={21} cy={16} r={12}/> : <rect x={5} y={4} width={32} height={24} rx={o.value === 'rounded' ? 7 : 0}/>}</svg> }))}/>;
+  const options = [{ value: 'rectangle', label: 'Прямоугольник' }, { value: 'rounded', label: 'Скруглённый блок' }, { value: 'circle', label: 'Круг' }, { value: 'diamond', label: 'Ромб' }];
+  return <SymbolChoice label="Форма блока" value={value} onChange={onChange} columns={4} options={options.map(o => ({ ...o, symbol: <svg aria-hidden="true" viewBox="0 0 42 32" fill="none" stroke="currentColor" strokeWidth={2}>{o.value==='diamond'?<path d="M21 2L40 16L21 30L2 16Z"/>:o.value === 'circle' ? <circle cx={21} cy={16} r={12}/> : <rect x={5} y={4} width={32} height={24} rx={o.value === 'rounded' ? 7 : 0}/>}</svg> }))}/>;
 }
 export function LineChoices({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return <SymbolChoice label="Тип линии связи" value={value} onChange={onChange} columns={3} options={lineTypes.map(o => ({ ...o, symbol: <svg aria-hidden="true" viewBox="0 0 44 24" fill="none" stroke="currentColor" strokeLinecap="round">

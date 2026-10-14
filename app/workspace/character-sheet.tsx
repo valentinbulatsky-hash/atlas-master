@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Choice } from './ui';
 import { DocumentPages } from './document-pages';
 import { characterDocuments } from '@/lib/character-documents';
-import type { Entity } from '@/lib/model';
+import {characterType,type Entity} from '@/lib/model';
+import {CharacterDetailsReader} from './character-details';
 
 export default function CharacterSheet({character,onClose,onEdit}:{character:Entity;onClose:()=>void;onEdit:()=>void}) {
  const [zoom,setZoom]=useState('fit'),[selected,setSelected]=useState('');
@@ -26,6 +27,6 @@ export default function CharacterSheet({character,onClose,onEdit}:{character:Ent
   </div>
   <DocumentPages document={document} title={character.title} zoom={zoom}/>
   {document.text&&<details className="sheet-transcript"><summary>Текст PDF</summary><p>{document.text}</p></details>}
-  {['role','motivation','notes'].some(key=>character.payload[key])&&<dl className="sheet-character-notes">{[['role','Роль в истории'],['motivation','Мотивация'],['notes','Заметки мастера']].map(([key,label])=>character.payload[key]&&<div key={key}><dt>{label}</dt><dd>{character.payload[key]}</dd></div>)}</dl>}
+  <CharacterDetailsReader entity={character} portrait={characterType(character)==='npc'}/>
  </section>;
 }

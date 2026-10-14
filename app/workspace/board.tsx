@@ -17,7 +17,8 @@ import { applyBoardChanges } from '@/lib/board-changes';
 
 function AtlasNode({ data, selected }: NodeProps) {
   const d = data as any;
-  return <div className={`atlas-node ${d.shape} ${selected ? 'selected' : ''}`} style={{ '--node-color': d.color } as any}>
+  return <div className={`atlas-node ${d.shape} ${selected ? 'selected' : ''}`} data-node-shape={d.shape} style={{ '--node-color': d.color } as any}>
+    <svg className="atlas-node-shape" aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none"><g vectorEffect="non-scaling-stroke">{d.shape==='diamond'?<polygon points="50,0 100,50 50,100 0,50"/>:d.shape==='circle'?<ellipse cx="50" cy="50" rx="50" ry="50"/>:<rect x="0" y="0" width="100" height="100" rx={d.shape==='rounded'?12:0}/>}</g></svg>
     {([Position.Left, Position.Right, Position.Top, Position.Bottom]).map(position => <Handle key={position} id={position} type="source" position={position} isConnectable={!d.readonly} style={d.readonly?{visibility:'hidden',pointerEvents:'none'}:undefined} aria-hidden={d.readonly} aria-label={`Точка связи: ${position}`}/>)}
     <>{!d.readonly && <NodeResizer color={d.color} minWidth={MIN_NODE_SIZE.width} minHeight={MIN_NODE_SIZE.height} maxWidth={MAX_NODE_SIZE} maxHeight={MAX_NODE_SIZE} keepAspectRatio={d.shape === 'circle'} lineClassName="board-resize-line" handleClassName="board-resize-handle" onResizeStart={() => d.startResize()}/>}</>
     <div className="atlas-node-content"><div className="node-type"><FileText size={13}/>{d.kind ?? 'Заметка'}</div>
