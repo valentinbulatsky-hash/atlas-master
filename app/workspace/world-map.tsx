@@ -16,8 +16,8 @@ export default function WorldMap({payload,onChange,entities,onOpen,readonly=fals
  useEffect(()=>{const el=areaRef.current;if(!el)return;const observer=new ResizeObserver(()=>setArea({width:Math.max(1,el.clientWidth),height:Math.max(1,el.clientHeight)}));observer.observe(el);return()=>observer.disconnect()},[]);
  useEffect(()=>{drag.current=null;setPlacing(false);if(readonly)setSelected('')},[readonly]);
  const payloadRef=useRef(payload);payloadRef.current=payload;
- const change=(patch:Record<string,any>)=>{if(!readonly)onChange({...payloadRef.current,...patch})};
- const edit=(id:string,patch:Partial<MapMarker>)=>change({pins:pins.map(p=>p.id===id?{...p,...patch}:p)});
+ const change=(patch:Record<string,any>)=>{if(readonly)return;const next={...payloadRef.current,...patch};payloadRef.current=next;onChange(next)};
+ const edit=(id:string,patch:Partial<MapMarker>)=>change({pins:(payloadRef.current.pins??[]).map((p:MapMarker)=>p.id===id?{...p,...patch}:p)});
  const reset=()=>{setZoom(1);setPos({x:0,y:0})};
  const pointerMove=(e:ReactPointerEvent<HTMLDivElement>)=>{
   const d=drag.current;if(!d)return;
