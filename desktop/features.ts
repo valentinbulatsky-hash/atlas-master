@@ -6,3 +6,5 @@ export * from '../lib/campaign-transfer';
 export * from '../lib/world-map';
 export * from '../lib/characters';
 export * from '../lib/board';
+
+export * from '../lib/campaign-background';

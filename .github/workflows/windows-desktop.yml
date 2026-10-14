@@ -69,8 +69,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           . ./.github/scripts/installer-archive.ps1
-          $version = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
+          $manifest = Get-Content desktop/package.json -Raw | ConvertFrom-Json
+          $version = if ($manifest.atlasVersion) { $manifest.atlasVersion } else { $manifest.version }
+          if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'Invalid desktop version' }
           $tag = "desktop-v$version"
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) { throw 'Tag does not match desktop version' }
           $out = Join-Path $env:RUNNER_TEMP 'atlas-release-assets'

@@ -51,3 +51,28 @@ test('diamond board blocks retain their size and four vertex handles through per
  const board=await create('board','Доска',camp.id,{nodes,edges});assert.deepEqual(board.payload.nodes,nodes);assert.deepEqual(board.payload.edges,edges);
  assert.equal((await api('PATCH',{...board,payload:{nodes:[{...nodes[2],data:{...nodes[2].data,shape:'triangle'}}]}})).status,400);
 });
+
+test('background transparency defaults to 50 and persists across saves, restart and transfer',async()=>{
+ const {backgroundTransparency,backgroundImage}=require('../features.cjs');
+ assert.equal(backgroundTransparency(),50);assert.equal(backgroundTransparency({type:'preset',preset:'forest'}),50);
+ await setup();const camp=await create('campaign','Настройки фона',null,{background:{type:'preset',preset:'forest',transparency:50}});
+ for(const value of [-1,101,'50'])assert.equal((await api('PATCH',{...camp,payload:{background:{type:'preset',preset:'forest',transparency:value}}})).status,400);
+ let current=camp;for(const transparency of [0,100,35]){const r=await api('PATCH',{...current,payload:{background:{type:'preset',preset:'parchment',transparency}}});assert.equal(r.status,200);current=r.data.entity;assert.equal(current.payload.background.transparency,transparency)}
+ const snapshot=(await api('GET',null,'/api/campaign-transfer?campaignId='+camp.id)).data;
+ const copy=await api('POST',{archive:{format:'atlas-master-campaign',version:1,campaignId:camp.id,records:snapshot.records,assets:[]},uploadedAssets:{},importId:randomUUID()},'/api/campaign-transfer');assert.equal(copy.status,200);
+ const rows=(await api('GET')).data.entities;assert.equal(rows.filter(e=>e.kind==='campaign').every(e=>e.payload.background.transparency===35),true);
+ storage.close();storage=await createStorage(directory);configureStorage(storage.database,storage.bucket);assert.equal((await api('GET')).data.entities.find(e=>e.id===camp.id).payload.background.transparency,35);
+ assert.equal(backgroundImage({type:'image',src:'https://example.com/image.png',transparency:50}),'none');
+});
+test('map label formatting persists, transfers, permits unnamed pins and validates bounds',async()=>{
+ const {markerLabel,markerFonts}=require('../features.cjs');assert.equal(markerFonts.length,4);assert.equal(markerLabel({}).visible,false);
+ await setup();const camp=await create('campaign','Подписи');
+ const label={visible:true,position:'above',font:'classic',size:24,color:'#000000',bold:true,italic:true,underline:true,strike:true};
+ const pin={id:'named',x:.4,y:.5,title:'Путевой узел',description:'',label};
+ const map=await create('map','Карта',camp.id,{pins:[pin,{...pin,id:'empty',title:''}]});assert.deepEqual(map.payload.pins[0].label,label);
+ for(const change of [{position:'left'},{font:'unknown'},{size:9},{size:37},{color:'white'},{visible:'yes'},{bold:1}])assert.equal((await api('PATCH',{...map,payload:{pins:[{...pin,label:{...label,...change}}]}})).status,400);
+ let saved=map;for(const font of markerFonts){const r=await api('PATCH',{...saved,payload:{pins:[{...pin,label:{...label,font:font.value,position:'below',size:36,color:'#ffffff'}}]}});assert.equal(r.status,200);saved=r.data.entity;assert.equal(saved.payload.pins[0].label.font,font.value)}
+ const snapshot=(await api('GET',null,'/api/campaign-transfer?campaignId='+camp.id)).data,importId=randomUUID();assert.equal((await api('POST',{archive:{format:'atlas-master-campaign',version:1,campaignId:camp.id,records:snapshot.records,assets:[]},uploadedAssets:{},importId},'/api/campaign-transfer')).status,200);
+ assert.deepEqual((await api('GET')).data.entities.find(e=>e.campaignId===importId&&e.kind==='map').payload.pins,saved.payload.pins);
+ storage.close();storage=await createStorage(directory);configureStorage(storage.database,storage.bucket);assert.deepEqual((await api('GET')).data.entities.find(e=>e.id===map.id).payload.pins,saved.payload.pins);
+});

@@ -97,7 +97,8 @@ function SidebarProvider({
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
-        event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
+        event.key.toLowerCase() === SIDEBAR_KEYBOARD_SHORTCUT &&
+        !(event.target instanceof HTMLElement && event.target.closest('input,textarea,select,[contenteditable="true"]')) &&
         (event.metaKey || event.ctrlKey)
       ) {
         event.preventDefault()

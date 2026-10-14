@@ -14,7 +14,7 @@ test('production stylesheet includes responsive sidebar, collapse and hidden-lab
 test('desktop settings remove native menu, restrict callers and preserve scale preferences',async()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'atlas-settings-'));
   const app=new EventEmitter(),paths={appData:temp,documents:temp};let main,handler,opened,quits=0,applicationMenu='initial';
-  Object.assign(app,{setPath:(key,value)=>paths[key]=value,getPath:key=>paths[key],getVersion:()=>require('../package.json').version,requestSingleInstanceLock:()=>true,whenReady:()=>Promise.resolve(),setAppUserModelId:()=>{},quit:()=>quits++});
+  Object.assign(app,{setPath:(key,value)=>paths[key]=value,getPath:key=>paths[key],getVersion:()=>(require('../package.json').atlasVersion??require('../package.json').version),requestSingleInstanceLock:()=>true,whenReady:()=>Promise.resolve(),setAppUserModelId:()=>{},quit:()=>quits++});
   class Window extends EventEmitter{
     constructor(options){super();main=this;this.options=options;this.fullscreen=false;this.contents=[];this.webContents=new EventEmitter();const frame={url:'atlas://app/'};this.webContents.mainFrame=frame;this.zoom=1;
       Object.assign(this.webContents,{session:Object.assign(new EventEmitter(),{setPermissionRequestHandler:()=>{},setPermissionCheckHandler:()=>{}}),getZoomFactor:()=>this.zoom,setZoomFactor:value=>this.zoom=value,setWindowOpenHandler:()=>{}});
@@ -36,7 +36,7 @@ test('desktop settings remove native menu, restrict callers and preserve scale p
     assert.equal(applicationMenu,null);assert.equal(main.menuRemoved,true);assert.equal(main.menuVisible,false);
     assert.equal(main.options.webPreferences.nodeIntegration,false);assert.equal(main.options.webPreferences.contextIsolation,true);assert.ok(main.options.webPreferences.preload.endsWith('preload.cjs'));
     const event={sender:main.webContents,senderFrame:main.webContents.mainFrame};
-    assert.equal((await handler(event,'info')).version,require('../package.json').version);
+    assert.equal((await handler(event,'info')).version,(require('../package.json').atlasVersion??require('../package.json').version));
     assert.equal((await handler(event,'zoom-in')).zoomFactor,1.1);
     assert.equal(JSON.parse(fs.readFileSync(path.join(paths.userData,'preferences.json'),'utf8')).zoomFactor,1.1);
     assert.equal((await handler(event,'zoom-reset')).zoomFactor,1);
