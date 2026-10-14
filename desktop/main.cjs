@@ -67,7 +67,7 @@ else {
     const preferenceFile=path.join(app.getPath('userData'),'preferences.json');
     let savedZoom=1;
     try{const value=JSON.parse(fs.readFileSync(preferenceFile,'utf8')).zoomFactor;if(Number.isFinite(value)&&value>=.7&&value<=1.8)savedZoom=value;}catch{}
-    const desktopInfo=()=>({version:require('./package.json').version,dataDirectory:directory,zoomFactor:window.webContents.getZoomFactor(),fullscreen:window.isFullScreen()});
+    const desktopInfo=()=>({version:require(path.join(__dirname,'package.json')).version,dataDirectory:directory,zoomFactor:window.webContents.getZoomFactor(),fullscreen:window.isFullScreen()});
     const applyZoom=value=>{
       const zoom=Math.max(.7,Math.min(1.8,Math.round(value*10)/10));
       window.webContents.setZoomFactor(zoom);
