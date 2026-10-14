@@ -5,7 +5,7 @@ import {markerLabel,markerFonts,MIN_LABEL_SIZE,MAX_LABEL_SIZE,type MapMarker,typ
 import {colors} from '@/lib/model';
 import {Field} from './ui';
 export default function MapLabelEditor({pin,onChange}:{pin:MapMarker;onChange:(label:MarkerLabel)=>void}){
- const label=markerLabel(pin),edit=(patch:MarkerLabel)=>onChange({...label,...patch});
+ const label=markerLabel(pin),edit=(patch:MarkerLabel)=>onChange(patch);
  return <section className="map-label-editor" aria-label="Оформление подписи метки">
   <div className="marker-title-row"><span>Показывать название на карте</span><Switch aria-label="Показывать название на карте" checked={label.visible} onCheckedChange={visible=>edit({visible})}/></div>
   {label.visible&&<>
