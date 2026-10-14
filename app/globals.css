@@ -476,7 +476,7 @@
 /* Legible text and predictable surfaces in both themes. */
 :root{
  --background:#111b29;--foreground:#e9eff8;--card:#1a2636;--card-foreground:#e9eff8;
- --popover:#1f2d40;--popover-foreground:#e9eff8;--primary:#e0bd87;--primary-foreground:#152032;
+ --popover:#1f2d40;--popover-foreground:#e9eff8;--primary:#e0bd87;--primary-foreground:#152032;--destructive:#b5364c;
  --secondary:#29384c;--secondary-foreground:#e9eff8;--muted:#233247;--muted-foreground:#b8c5d6;
  --accent:#30425a;--accent-foreground:#f0d8b1;--border:#3c4d64;--input:#4a5d77;
  --sidebar:#142131;--sidebar-foreground:#c0cede;--sidebar-accent:#293b53;--sidebar-accent-foreground:#f0d8b1;
