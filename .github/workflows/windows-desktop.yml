@@ -44,6 +44,8 @@ jobs:
       - name: Build Windows installer and run tests
         working-directory: desktop
         run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
           npm run build
           npx tsc --noEmit -p tsconfig.json
           npm test
@@ -53,6 +55,11 @@ jobs:
           $uiReport = Get-Content test-output/features-smoke.json -Raw | ConvertFrom-Json
           if (!$uiReport.ok) { throw ($uiReport.error) }
           Get-Content test-output/features-smoke.json
+          npx electron tests/editor-smoke.electron.cjs
+          if (!(Test-Path test-output/editor-smoke.json)) { throw 'Editor UI smoke report missing' }
+          $editorReport = Get-Content test-output/editor-smoke.json -Raw | ConvertFrom-Json
+          if (!$editorReport.ok) { throw ($editorReport.error) }
+          Get-Content test-output/editor-smoke.json
           npx electron-builder --win nsis --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -62,8 +69,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           . ./.github/scripts/installer-archive.ps1
-          $version = (Get-Content desktop/package.json -Raw | ConvertFrom-Json).version
-          if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid desktop version' }
+          $manifest = Get-Content desktop/package.json -Raw | ConvertFrom-Json
+          $version = if ($manifest.atlasVersion) { $manifest.atlasVersion } else { $manifest.version }
+          if ($version -notmatch '^\d+\.\d+\.\d+(\.\d+)?$') { throw 'Invalid desktop version' }
           $tag = "desktop-v$version"
           if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) { throw 'Tag does not match desktop version' }
           $out = Join-Path $env:RUNNER_TEMP 'atlas-release-assets'

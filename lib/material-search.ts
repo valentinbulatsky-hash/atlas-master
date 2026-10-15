@@ -7,7 +7,7 @@ export const searchSorts=[{value:'relevance',label:'По совпадению'},
 export function searchKey(text:string){return titleKey(text).replace(/ё/g,'е');}
 export function materialText(e:Entity,entities:Entity[]=[]):string{
  const p=e.payload;
- return [e.summary,plainText(p.content),p.role,p.motivation,p.notes,p.sheet?.text,...(p.documents??[]).map((d:any)=>d.text),...(p.nodes??[]).flatMap((n:any)=>[n.data?.title,n.data?.summary,n.data?.text]),...(p.edges??[]).map((n:any)=>n.label),...(p.pins??[]).flatMap((n:any)=>[n.title,n.description]),...(isSession(e)?(p.participantIds??[]).map((id:string)=>entities.find(x=>x.id===id)?.title):[])].filter(Boolean).join(' ').replace(/\s+/gu,' ').trim();
+ return [e.summary,plainText(p.content),p.role,p.appearance,p.distinguishingFeatures,p.motivation,p.notes,p.sheet?.text,...(p.documents??[]).map((d:any)=>d.text),...(p.nodes??[]).flatMap((n:any)=>[n.data?.title,n.data?.summary,n.data?.text]),...(p.edges??[]).map((n:any)=>n.label),...(p.pins??[]).flatMap((n:any)=>[n.title,n.description]),...(isSession(e)?(p.participantIds??[]).map((id:string)=>entities.find(x=>x.id===id)?.title):[])].filter(Boolean).join(' ').replace(/\s+/gu,' ').trim();
 }
 export function folderPath(e:Entity,entities:Entity[]):string{
  const parts=[e.title],seen=new Set([e.id]);let id=e.folderId;
